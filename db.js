@@ -1,19 +1,26 @@
 require("dotenv").config();
-const { Pool } = require("pg");
+const { MongoClient } = require("mongodb");
 
-const pool = new Pool({
-    user: process.env.DB_USER,        // postgres
-    password: process.env.DB_PASSWORD, // tu contraseña
-    host: process.env.DB_HOST,        // db.rhscaieuhyzlsgnwvxll.supabase.co
-    port: process.env.DB_PORT,        // 5432
-    database: process.env.DB_NAME,    // proyecto
-    ssl: {
-        rejectUnauthorized: false
+const client = new MongoClient(process.env.MONGODB_URI);
+
+let db;
+
+const connectDB = async () => {
+    try {
+        await client.connect();
+        db = client.db(process.env.DB_NAME || "proyecto");
+        console.log("Conexión exitosa a MongoDB Atlas");
+    } catch (error) {
+        console.error("Error conectando a MongoDB Atlas:", error);
+        process.exit(1);
     }
-});
+};
 
-pool.on("connect", () => {
-    console.log("Conexión exitosa a Supabase PostgreSQL");
-});
+const getDB = () => {
+    if (!db) {
+        throw new Error("Base de datos no conectada. Llama a connectDB() primero.");
+    }
+    return db;
+};
 
-module.exports = { pool };
+module.exports = { client, connectDB, getDB };

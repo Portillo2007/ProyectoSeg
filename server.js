@@ -4,8 +4,9 @@ const cors = require("cors");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const rateLimit = require("express-rate-limit");
-const { pool } = require("./db");
+const { connectDB, getDB } = require("./db");
 const path = require("path");
+const { ObjectId } = require("mongodb");
 
 const app = express();
 app.use(cors());
@@ -31,11 +32,12 @@ app.post("/register", async (req, res) => {
     if (!username || !password) return res.json({ ok: false, msg: "Datos inválidos" });
 
     try {
-        const exists = await pool.query("SELECT * FROM users WHERE username=$1", [username]);
-        if (exists.rows.length > 0) return res.json({ ok: false, msg: "Usuario ya existe" });
+        const db = getDB();
+        const exists = await db.collection("users").findOne({ username });
+        if (exists) return res.json({ ok: false, msg: "Usuario ya existe" });
 
         const hashed = bcrypt.hashSync(password, 10);
-        await pool.query("INSERT INTO users (username, password_hash) VALUES ($1,$2)", [username, hashed]);
+        await db.collection("users").insertOne({ username, password_hash: hashed });
         res.json({ ok: true, msg: "Usuario registrado correctamente" });
     } catch (err) {
         console.log(err);
@@ -47,15 +49,15 @@ app.post("/register", async (req, res) => {
 app.post("/login", async (req, res) => {
     const { username, password } = req.body;
     try {
-        const result = await pool.query("SELECT * FROM users WHERE username=$1", [username]);
-        if (result.rows.length === 0) return res.json({ ok: false, msg: "Usuario no encontrado" });
+        const db = getDB();
+        const user = await db.collection("users").findOne({ username });
+        if (!user) return res.json({ ok: false, msg: "Usuario no encontrado" });
 
-        const user = result.rows[0];
         const valid = bcrypt.compareSync(password, user.password_hash);
         if (!valid) return res.json({ ok: false, msg: "Contraseña incorrecta" });
 
-        const token = jwt.sign({ username: user.username, id: user.id }, SECRET_KEY, { expiresIn: "2h" });
-        res.json({ ok: true, msg: "Login correcto", token, userId: user.id });
+        const token = jwt.sign({ username: user.username, id: user._id.toString() }, SECRET_KEY, { expiresIn: "2h" });
+        res.json({ ok: true, msg: "Login correcto", token, userId: user._id.toString() });
     } catch (err) {
         console.log(err);
         res.json({ ok: false, msg: "Error al iniciar sesión" });
@@ -81,10 +83,12 @@ app.post("/save-text", verifyToken, async (req, res) => {
     if (!cipher) return res.json({ ok: false, msg: "No se recibió texto cifrado" });
 
     try {
-        await pool.query(
-            "INSERT INTO texts (user_id, cipher) VALUES ($1, $2)",
-            [req.user.id, cipher]
-        );
+        const db = getDB();
+        await db.collection("texts").insertOne({
+            user_id: new ObjectId(req.user.id),
+            cipher,
+            created_at: new Date()
+        });
         res.json({ ok: true, msg: "Texto guardado" });
     } catch (err) {
         console.error(err);
@@ -95,11 +99,12 @@ app.post("/save-text", verifyToken, async (req, res) => {
 // ===== OBTENER TEXTOS CIFRADOS =====
 app.get("/my-texts", verifyToken, async (req, res) => {
     try {
-        const result = await pool.query(
-            "SELECT * FROM texts WHERE user_id=$1 ORDER BY created_at DESC",
-            [req.user.id]
-        );
-        res.json({ ok: true, rows: result.rows });
+        const db = getDB();
+        const result = await db.collection("texts")
+            .find({ user_id: new ObjectId(req.user.id) })
+            .sort({ created_at: -1 })
+            .toArray();
+        res.json({ ok: true, rows: result });
     } catch (err) {
         console.error(err);
         res.json({ ok: false, msg: "Error al obtener textos" });
@@ -111,4 +116,7 @@ app.get("/", (req, res) => {
     res.sendFile(path.join(__dirname, "index.html"));
 });
 
-app.listen(PORT, () => console.log(`Servidor corriendo en puerto ${PORT}`));
+// Conectar a MongoDB Atlas
+connectDB().then(() => {
+    app.listen(PORT, () => console.log(`Servidor corriendo en puerto ${PORT}`));
+});

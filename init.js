@@ -20,7 +20,7 @@ async function createTables() {
             );
         `);
 
-        console.log("Tablas creadas correctamente en Supabase");
+        console.log("Tablas creadas correctamente en MongoDB Atlas");
         process.exit(0);
     } catch (err) {
         console.error("Error creando tablas:", err);
