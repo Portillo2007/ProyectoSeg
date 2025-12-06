@@ -10,31 +10,26 @@
         <h1>Iniciar Sesión</h1>
         <input type="text" id="username" placeholder="Usuario"><br>
         <input type="password" id="password" placeholder="Contraseña"><br>
-        <button onclick="login()">Ingresar</button>
+        <button onclick="handleLogin()">Ingresar</button>
 
         <p>¿No tienes cuenta? <a href="register.html">Regístrate</a></p>
     </div>
 
+    <script src="js/auth.js"></script>
     <script>
-    async function login() {
-        const username = document.getElementById("username").value.trim();
-        const password = document.getElementById("password").value.trim();
-        if (!username || !password) return alert("Completa todos los campos");
+        async function handleLogin() {
+            const username = document.getElementById("username").value.trim();
+            const password = document.getElementById("password").value.trim();
+            if (!username || !password) {
+                alert("Completa todos los campos");
+                return;
+            }
 
-        const res = await fetch("/login", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ username, password })
-        });
-        const data = await res.json();
-        if (data.ok) {
-            localStorage.setItem("token", data.token);
-            localStorage.setItem("userId", data.userId);
-            window.location.href = "encrypt.html";
-        } else {
-            alert(data.msg);
+            const success = await loginUser(username, password);
+            if (success) {
+                window.location.href = "encrypt.html";
+            }
         }
-    }
     </script>
 </body>
 </html>

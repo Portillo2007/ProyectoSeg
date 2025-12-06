@@ -24,8 +24,14 @@
 <script src="js/auth.js"></script>
 
 <script>
+// Verificar sesión al cargar la página
+checkSession().then(isValid => {
+    if (!isValid) {
+        window.location.href = "index.html";
+    }
+});
+
 const token = localStorage.getItem("token");
-if (!token) window.location.href = "index.html";
 
 function decryptAndShow() {
     const cipher = document.getElementById("ciphertext").value.trim();
@@ -40,6 +46,7 @@ function decryptAndShow() {
 function logout() {
     localStorage.removeItem("token");
     localStorage.removeItem("userId");
+    sessionStorage.removeItem("sessionKey");
     window.location.href = "index.html";
 }
 </script>

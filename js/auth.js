@@ -1,6 +1,43 @@
-const API_URL = "https://sausagelike-nova-bridally.ngrok-free.dev";
+// Detectar automáticamente la URL actual
+const API_URL = window.location.origin;
 
+// Verificar si la sesión es válida y única
+async function checkSession() {
+    const token = localStorage.getItem("token");
+    const sessionKey = sessionStorage.getItem("sessionKey");
+    
+    if (!token || !sessionKey) {
+        localStorage.removeItem("token");
+        localStorage.removeItem("userId");
+        sessionStorage.removeItem("sessionKey");
+        return false;
+    }
+    
+    try {
+        const response = await fetch(API_URL + "/my-texts", {
+            method: "GET",
+            headers: { "Authorization": token }
+        });
+        
+        // Si el token es inválido, limpiar todo
+        if (response.status === 401 || response.status === 403) {
+            localStorage.removeItem("token");
+            localStorage.removeItem("userId");
+            sessionStorage.removeItem("sessionKey");
+            return false;
+        }
+        
+        return response.ok;
+    } catch (error) {
+        return false;
+    }
+}
 
+// Generar clave de sesión única
+function generateSessionKey() {
+    return Math.random().toString(36).substring(2, 15) + 
+           Date.now().toString(36);
+}
 
 // ----- REGISTRO -----
 async function registerUser(username, password) {
@@ -29,6 +66,8 @@ async function loginUser(username, password) {
     if (data.ok) {
         localStorage.setItem("token", data.token);
         localStorage.setItem("userId", data.userId);
+        // Generar y guardar clave de sesión única
+        sessionStorage.setItem("sessionKey", generateSessionKey());
         return true;
     }
 
@@ -48,6 +87,14 @@ async function saveCipher(cipher) {
     });
 
     return await response.json();
+}
+
+// ----- CERRAR SESIÓN -----
+function logout() {
+    localStorage.removeItem("token");
+    localStorage.removeItem("userId");
+    sessionStorage.removeItem("sessionKey");
+    window.location.href = "index.html";
 }
 
 // ----- OBTENER HISTORIAL -----

@@ -25,8 +25,14 @@
 <script src="js/auth.js"></script>
 
 <script>
+// Verificar sesión al cargar la página
+checkSession().then(isValid => {
+    if (!isValid) {
+        window.location.href = "index.html";
+    }
+});
+
 const token = localStorage.getItem("token");
-if (!token) window.location.href = "index.html";
 
 async function encryptAndSave() {
     const text = document.getElementById("plain").value.trim();
@@ -71,6 +77,7 @@ function clearHistory() {
 function logout() {
     localStorage.removeItem("token");
     localStorage.removeItem("userId");
+    sessionStorage.removeItem("sessionKey");
     window.location.href = "index.html";
 }
 
